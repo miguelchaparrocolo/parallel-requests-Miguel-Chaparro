@@ -1,94 +1,74 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
+  const apiurl = 'https://rickandmortyapi.com/api/episode'
 
-  const urlapi = 'https://rickandmortyapi.com/api/episode';
 
-const fetchEpisode = async () => {
-  const res = await fetch(urlapi);
-    return res.json();
+
+async function getEpisodes() {
+  const response = await fetch(apiurl);
+    const data = await response.json();
+      return data.results;
 }
 
-const fetchCharacter = async (urlapi) => {
-  const res = await fetch(urlapi);
-    return res.json();
+async function getCharacters(url) {
+  const response = await fetch(url);
+    const data = await response.json();
+      return data;
 }
 
-const fetchAllCharacters = async (charactersUrl) => {
-  const characterUrlSet = new Set();
-    charactersUrl.forEach ((urlapi) => {
-      characterUrlSet.add(urlapi);
-    });
+async function getInfo() {
+  const episodes = await getEpisodes();
+    const characterEpisode = episodes.reduce((datai, i) => {
+      return [...datai, ...i.characters.slice(0, 10)];
+    },[]);//no comprendo del todo como afectan []
 
-  const promiseCharacters = Array.from(characterUrlSet).map((characterUrl) => {
-    const promiseCharacter = fetchCharacter(characterUrl);
-      return promiseCharacter;
-  })
-
-  const charactersData = await promiseCharacters.all(promiseCharacters);
-    return charactersData;
-}
-
-const createData = (episodes, characters) => {
-  const DataN = episodes.map((episode) => {
-    return{
-      title: `${episode.name} at ${episode.episode}`,
-      dateOnAir: episode.air_date,
-      characters: episode.characters.slice(0-10).map((urlapi) => {
-        return characters.find((item) => urlapi === item.urlapi);
-      })
-    }
+  const promiseCharacter = characterEpisode.map((url) => {
+    return getCharacters(url);
   });
-      return DataN;
-};
+
+  const result = await Promise.all(promiseCharacter);
+
+  const data = episodes.map((episode) => {
+    return {
+      title: `${episode.name} at  ${episode.episode}`,
+      dateToAir: episode.air_date,
+      characters: episode.characters.slice(0, 10).map((url) => {
+        return result.find((i) => i.url === url);
+      }),
+    };
+  });
+    return data;
+}
 
 function App() {
-  const [allData, setAllData] = useState ();
+  const [data, setData] = useState([]);
 
   useEffect(() => {
-    const fetchI = async () => {
-      const episodesData = await fetchEpisode();
-      const episodesList = episodesData.result;
+    getInfo().then((data) => {
+      setData(data);
+    });
+  }, []);
 
-      const characterslist = [];
-      episodesList.map((episode) => {
-        episode.characters.map((characterUrl, i) => {
-          if (i <= 9) {
-            characterslist.push(characterUrl);
-          }
-        });
-      });
+  return (
+    <div>
+      <h1>Rick & Morty Directory</h1>
+      <ul>
+        {data.map((episode) => (
+          <li key={episode.id}>
+            <h2>{episode.title}</h2>
+            <h3>Emission: {episode.dateToAir}</h3>
+            <h3>Characters:</h3>
+            <ul>
+              {episode.characters.map((character) => (
+                <li key={character.id}>
+                  {character.name} - {character.species}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
-      const charactersData = await fetchAllCharacters(characterslist);
-
-      const data = createData(episodesList, charactersData);
-        setAllData(data);
-    }
-    fetchI();
-  }, [])
-
-    return (
-      <>
-        <h3>Rick and Morty Directory</h3>
-        <h4>Episodes:</h4>
-        {allData.map((episode, i) => {
-          return(
-            <div className="episode__title" key={i}>
-              <p>{ episode.title }</p>
-              <p>Emission: { episode.dateOnAir }</p>
-              <p>characters:</p>
-                <div className="episode__characters">
-                  <ul>
-                    {episode.characters.map((character, i) => {
-                      return <li key={i}>
-                        {`${character.name} - ${character.especies}`}
-                      </li>
-                    })}
-                  </ul>
-                </div>
-            </div>
-          );
-        })}
-      </>
-    );
-};
-
-  export default App;
+export default App;
